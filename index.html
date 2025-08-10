@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Défi Chaîne WhatsApp</title>
+<style>
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #6e8efb, #a777e3);
+    color: #fff;
+    margin: 0; padding: 1rem;
+    display: flex; flex-direction: column; align-items: center;
+    min-height: 100vh;
+  }
+  h1 {
+    text-align: center;
+    margin-bottom: 0.5rem;
+  }
+  .question {
+    background: rgba(255 255 255 / 0.15);
+    padding: 1rem;
+    border-radius: 12px;
+    font-size: 1.2rem;
+    text-align: center;
+    max-width: 400px;
+    margin-bottom: 1rem;
+    box-shadow: 0 0 10px rgba(255 255 255 / 0.3);
+  }
+  .responses {
+    background: rgba(255 255 255 / 0.2);
+    border-radius: 12px;
+    max-width: 400px;
+    width: 100%;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+    max-height: 300px;
+    overflow-y: auto;
+    box-shadow: inset 0 0 10px rgba(255 255 255 / 0.3);
+  }
+  .response-item {
+    margin-bottom: 0.6rem;
+    padding: 0.5rem;
+    background: rgba(255 255 255 / 0.1);
+    border-radius: 8px;
+  }
+  .pseudo {
+    font-weight: bold;
+    color: #ffe066;
+    margin-right: 0.5rem;
+  }
+  label {
+    display: block;
+    margin-top: 0.6rem;
+    margin-bottom: 0.2rem;
+  }
+  input[type="text"] {
+    width: 100%;
+    padding: 0.6rem 0.8rem;
+    border-radius: 8px;
+    border: none;
+    font-size: 1rem;
+    outline: none;
+  }
+  textarea {
+    width: 100%;
+    height: 80px;
+    padding: 0.6rem 0.8rem;
+    border-radius: 8px;
+    border: none;
+    font-size: 1rem;
+    resize: vertical;
+    outline: none;
+  }
+  button {
+    margin-top: 1rem;
+    background: #ffe066;
+    border: none;
+    color: #3a1d8f;
+    font-weight: bold;
+    font-size: 1.1rem;
+    padding: 0.75rem 1.5rem;
+    border-radius: 30px;
+    cursor: pointer;
+    transition: background 0.3s ease;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+  }
+  button:hover {
+    background: #ffcc00;
+  }
+  .info-msg {
+    margin-top: 1rem;
+    color: #ffd966;
+    font-style: italic;
+    max-width: 400px;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<h1>🎉 Défi Chaîne WhatsApp 🎉</h1>
+
+<div class="question" id="questionBox">Chargement de la question...</div>
+
+<div class="responses" id="responsesBox">Chargement des réponses...</div>
+
+<form id="answerForm">
+  <label for="pseudo">Ton pseudo (optionnel) :</label>
+  <input type="text" id="pseudo" name="pseudo" placeholder="Ex: Kadi, TiJean..." maxlength="20" autocomplete="off" />
+
+  <label for="answer">Ta réponse :</label>
+  <textarea id="answer" name="answer" placeholder="Tape ta réponse ici… et surprends-nous !" required></textarea>
+
+  <button type="submit">Envoyer via WhatsApp</button>
+</form>
+
+<div class="info-msg" id="infoMsg"></div>
+
+<script>
+(() => {
+  // Liste des questions retenues
+  const questions = [
+    "Quel est ton plus grand secret que personne ne connaît ?",
+    "Si tu pouvais avoir un super pouvoir, lequel ce serait et pourquoi ?",
+    "Si tu étais un animal, lequel serais-tu ?",
+    "Quel est ton plat préféré que tu pourrais manger tous les jours ?",
+    "Quelle question tu aimerais qu’on te pose ?",
+    "Si tu devais inventer un nouveau mot, ce serait quoi ?",
+    "Quel est ton talent caché ?",
+    "Quel emoji te décrit le mieux ?"
+  ];
+
+  // Récupérer paramètre dans URL
+  function getParam(name) {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get(name);
+  }
+
+  // Encoder en base64
+  function encodeData(data) {
+    return btoa(unescape(encodeURIComponent(JSON.stringify(data))));
+  }
+
+  // Décoder base64
+  function decodeData(data) {
+    try {
+      return JSON.parse(decodeURIComponent(escape(atob(data))));
+    } catch(e) {
+      return [];
+    }
+  }
+
+  // Limiter à 10 dernières réponses
+  function lastTen(arr) {
+    if (arr.length <= 10) return arr;
+    return arr.slice(arr.length - 10);
+  }
+
+  // Affichage réponses
+  function showResponses(responses) {
+    const box = document.getElementById("responsesBox");
+    box.innerHTML = "";
+    if (responses.length === 0) {
+      box.textContent = "Personne n'a encore répondu. Sois le premier ! 🚀";
+      return;
+    }
+    lastTen(responses).forEach(({pseudo, answer}, i) => {
+      const div = document.createElement("div");
+      div.className = "response-item";
+      div.innerHTML = (pseudo ? `<span class="pseudo">${pseudo}:</span>` : "") + escapeHtml(answer);
+      box.appendChild(div);
+    });
+  }
+
+  // Échapper HTML (sécurité)
+  function escapeHtml(text) {
+    const div = document.createElement("div");
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  // Initialisation
+  let qIndex = parseInt(getParam("q")) || 0;
+  if (qIndex >= questions.length) qIndex = 0; // boucle sur questions
+
+  let responsesData = decodeData(getParam("data")) || [];
+
+  // Afficher question
+  const questionBox = document.getElementById("questionBox");
+  questionBox.textContent = questions[qIndex];
+
+  // Afficher réponses
+  showResponses(responsesData);
+
+  // Formulaire
+  const form = document.getElementById("answerForm");
+  const pseudoInput = document.getElementById("pseudo");
+  const answerInput = document.getElementById("answer");
+  const infoMsg = document.getElementById("infoMsg");
+
+  form.addEventListener("submit", e => {
+    e.preventDefault();
+
+    let pseudo = pseudoInput.value.trim();
+    let answer = answerInput.value.trim();
+    if (!answer) return;
+
+    // Ajouter réponse à la chaîne
+    responsesData.push({pseudo: pseudo || null, answer});
+
+    // Encode nouvelle chaîne
+    const encoded = encodeData(responsesData);
+
+    // Question suivante
+    let nextQ = (qIndex + 1) % questions.length;
+
+    // Construire lien WhatsApp
+    const baseUrl = window.location.origin + window.location.pathname;
+    const shareUrl = `${baseUrl}?q=${nextQ}&data=${encoded}`;
+
+    // Message WhatsApp
+    const waMessage = encodeURIComponent(
+      `🎲 J'ai relevé le défi:\n\n"${questions[qIndex]}"\n\nMa réponse: "${answer}"\n\nÀ toi de jouer ! Clique ici pour continuer la chaîne:\n${shareUrl}`
+    );
+
+    // Lien WhatsApp
+    const waLink = `https://wa.me/?text=${waMessage}`;
+
+    // Ouvrir WhatsApp dans un nouvel onglet
+    window.open(waLink, "_blank");
+
+    // Message de confirmation et reset champs
+    infoMsg.textContent = "Réponse ajoutée ! Partage ton lien WhatsApp pour inviter un ami.";
+    pseudoInput.value = "";
+    answerInput.value = "";
+
+    // Afficher nouvelles réponses (max 10)
+    showResponses(responsesData);
+  });
+
+})();
+</script>
+
+</body>
+</html>
